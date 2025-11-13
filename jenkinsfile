@@ -44,7 +44,6 @@ pipeline {
                             env.ENVIRONMENT = 'develop'
                             break
                         default:
-                            // 🔧 Ramas de tipo HU-XX-dev o similares
                             if (branch.startsWith('HU-') && branch.endsWith('-dev')) {
                                 env.ENVIRONMENT = 'develop'
                                 echo "🧪 Rama de desarrollo detectada (${branch}) — se usará entorno 'develop'"
@@ -54,12 +53,23 @@ pipeline {
                             break
                     }
 
-                    // 📂 Directorios y archivos específicos
+                    // -----------------------------------------------------
+                    // 🔥 Mapeo explícito de ENTORNO lógico → archivo .env real
+                    // -----------------------------------------------------
+                    def envFileMap = [
+                        "develop": "dev",
+                        "qa": "qa",
+                        "staging": "staging",
+                        "prod": "prod"
+                    ]
+
+                    // -----------------------------------------------------
+                    // 📂 Construcción de rutas efectivas
+                    // -----------------------------------------------------
                     env.ENV_DIR          = "Devops/${env.ENVIRONMENT}"
                     env.COMPOSE_FILE     = "${env.ENV_DIR}/Docker-compose.yml"
-                    env.ENV_FILE         = "${env.ENV_DIR}/.env.${env.ENVIRONMENT}"
-                    env.DB_COMPOSE_FILE = "Experiencias-DB/docker-compose.yml"
-
+                    env.ENV_FILE         = "${env.ENV_DIR}/.env.${envFileMap[env.ENVIRONMENT]}"
+                    env.DB_COMPOSE_FILE  = "Experiencias-DB/docker-compose.yml"
 
                     echo """
                     🌎 Entorno asignado: ${env.ENVIRONMENT}
@@ -68,7 +78,6 @@ pipeline {
                     🗄️ Compose file (DB): ${env.DB_COMPOSE_FILE}
                     """
 
-                    // 🔍 Validar existencia del archivo compose del entorno
                     if (!fileExists(env.COMPOSE_FILE)) {
                         error "❌ No se encontró el archivo ${env.COMPOSE_FILE}"
                     }
@@ -129,7 +138,6 @@ pipeline {
                 }
             }
         }
-
 
         // =======================================================
         // 6️⃣ LIMPIAR CONTENEDORES ANTERIORES
