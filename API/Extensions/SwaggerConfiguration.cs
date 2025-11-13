@@ -40,7 +40,6 @@ namespace API.Extensions
             {
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "Experiencias API v1");
                 c.RoutePrefix = "swagger";
-                c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
             });
 
             return app;
