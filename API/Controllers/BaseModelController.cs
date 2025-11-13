@@ -42,7 +42,7 @@ namespace API.Controllers
         /// </summary>
         /// <param name="filters">Filtros opcionales de consulta.</param>
         /// <returns>Lista de DTOs de la entidad.</returns>
-        [Authorize] // Requiere autenticación
+        
         [HttpGet("getAll")]
         public override async Task<ActionResult<IEnumerable<R>>> GetAll([FromQuery] QueryFilterRequest filters)
         {
