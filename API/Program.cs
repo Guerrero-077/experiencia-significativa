@@ -113,8 +113,12 @@ using (var scope = app.Services.CreateScope())
 
 //  CONFIGURACIÓN DEL PIPELINE HTTP
 
-    app.UseSwagger();
-    app.UseSwaggerUI();
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Experiencias API v1");
+    c.RoutePrefix = "swagger";
+});
 
 
 // CORS global
