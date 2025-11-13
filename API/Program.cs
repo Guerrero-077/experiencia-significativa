@@ -112,7 +112,8 @@ using (var scope = app.Services.CreateScope())
 
 
 //  CONFIGURACIÓN DEL PIPELINE HTTP
-app.UseCustomSwagger();
+app.UseStaticFiles();          
+app.UseCustomSwagger();         
 
 
 // CORS global
