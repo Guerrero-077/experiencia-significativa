@@ -101,19 +101,19 @@ using (var scope = app.Services.CreateScope())
     sqlServerContext.Database.Migrate();
 
     // Si deseas aplicar también las migraciones de otros motores, descomenta:
-    
-   // var postgresContext = scope.ServiceProvider.GetRequiredService<ApplicationContextPostgres>();
-  //  postgresContext.Database.Migrate();
 
-//    var mySqlContext = scope.ServiceProvider.GetRequiredService<ApplicationContextMySQL>();
-  //  mySqlContext.Database.Migrate();
-    
+    // var postgresContext = scope.ServiceProvider.GetRequiredService<ApplicationContextPostgres>();
+    //  postgresContext.Database.Migrate();
+
+    //    var mySqlContext = scope.ServiceProvider.GetRequiredService<ApplicationContextMySQL>();
+    //  mySqlContext.Database.Migrate();
+
 }
 
 
 //  CONFIGURACIÓN DEL PIPELINE HTTP
-app.UseStaticFiles();          
-app.UseCustomSwagger();         
+app.UseStaticFiles();
+app.UseCustomSwagger();
 
 
 // CORS global
