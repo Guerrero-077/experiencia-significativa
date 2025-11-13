@@ -112,9 +112,7 @@ using (var scope = app.Services.CreateScope())
 
 
 //  CONFIGURACIÓN DEL PIPELINE HTTP
-app.UseStaticFiles();
 app.UseCustomSwagger();
-
 
 // CORS global
 app.UseCors("AllowAll");
@@ -128,6 +126,14 @@ app.UseAuthorization();
 
 // Mapear controladores
 app.MapControllers();
+
+// Endpoint raíz que retorna información de la API
+app.MapGet("/", () => Results.Json(new 
+{ 
+    message = "Experiencias API está activa",
+    swagger = "/swagger",
+    version = "v1"
+})).ExcludeFromDescription();
 
 // Ejecutar aplicación
 app.Run();
