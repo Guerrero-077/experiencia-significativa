@@ -73,6 +73,5 @@ volumes:
 
 networks:
   network_experiencesig:
-    name: network_experiencesig
-    driver: bridge
-    external: false
+    external: true
+
