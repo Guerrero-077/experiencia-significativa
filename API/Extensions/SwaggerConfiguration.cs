@@ -2,10 +2,11 @@
 
 namespace API.Extensions
 {
-    public static class SwaggerConfiguration
+    public static class SwaggerExtensions
     {
-        public static void AddSwaggerDocumentation(this IServiceCollection services)
+        public static IServiceCollection AddCustomSwagger(this IServiceCollection services)
         {
+            services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo
@@ -14,30 +15,35 @@ namespace API.Extensions
                     Version = "v1",
                     Description = "API principal de Experiencias Significativas"
                 });
+            });
 
-                var securityScheme = new OpenApiSecurityScheme
-                {
-                    Name = "Authorization",
-                    Type = SecuritySchemeType.Http,
-                    Scheme = "bearer",
-                    BearerFormat = "JWT",
-                    In = ParameterLocation.Header,
-                    Description = "Ingrese el token JWT",
-                    Reference = new OpenApiReference
-                    {
-                        Id = "Bearer",
-                        Type = ReferenceType.SecurityScheme
-                    }
-                };
+            return services;
+        }
 
-                c.AddSecurityDefinition("Bearer", securityScheme);
-
-                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+        public static IApplicationBuilder UseCustomSwagger(this IApplicationBuilder app)
+        {
+            app.UseSwagger(c =>
             {
-                { securityScheme, Array.Empty<string>() }
+                c.PreSerializeFilters.Add((swagger, req) =>
+                {
+                    var scheme = req.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? req.Scheme;
+                    var host = req.Headers["X-Forwarded-Host"].FirstOrDefault() ?? req.Host.Value;
+                    var basePath = req.PathBase.HasValue ? req.PathBase.Value : string.Empty;
+
+                    swagger.Servers = new List<OpenApiServer> {
+                        new OpenApiServer { Url = $"{scheme}://{host}{basePath}" }
+                    };
+                });
             });
+
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Experiencias API v1");
+                c.RoutePrefix = "swagger";
+                c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
             });
+
+            return app;
         }
     }
-
 }
