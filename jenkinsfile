@@ -1,0 +1,176 @@
+pipeline {
+    agent any
+
+    environment {
+        DOTNET_CLI_HOME = '/var/jenkins_home/.dotnet'
+        DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
+        DOTNET_NOLOGO = '1'
+        PROJECT_PATH = 'API/API.csproj'
+    }
+
+    stages {
+
+        // =======================================================
+        // 1️⃣ CHECKOUT
+        // =======================================================
+        stage('Checkout código fuente') {
+            steps {
+                echo "📥 Clonando repositorio desde GitHub..."
+                checkout scm
+                sh 'ls -R Devops || true'
+            }
+        }
+
+        // =======================================================
+        // 2️⃣ DETECTAR ENTORNO SEGÚN LA RAMA
+        // =======================================================
+        stage('Detectar entorno') {
+            steps {
+                script {
+                    def branch = env.BRANCH_NAME?.trim()
+                    echo "✅ Rama detectada: ${branch}"
+
+                    switch (branch) {
+                        case 'main':
+                            env.ENVIRONMENT = 'prod'
+                            break
+                        case 'staging':
+                            env.ENVIRONMENT = 'staging'
+                            break
+                        case 'qa':
+                            env.ENVIRONMENT = 'qa'
+                            break
+                        case 'dev':
+                            env.ENVIRONMENT = 'develop'
+                            break
+                        default:
+                            // 🔧 Ramas de tipo HU-XX-dev o similares
+                            if (branch.startsWith('HU-') && branch.endsWith('-dev')) {
+                                env.ENVIRONMENT = 'develop'
+                                echo "🧪 Rama de desarrollo detectada (${branch}) — se usará entorno 'develop'"
+                            } else {
+                                error("❌ Rama no reconocida: ${branch}")
+                            }
+                            break
+                    }
+
+                    // 📂 Directorios y archivos específicos
+                    env.ENV_DIR          = "Devops/${env.ENVIRONMENT}"
+                    env.COMPOSE_FILE     = "${env.ENV_DIR}/Docker-compose.yml"
+                    env.ENV_FILE         = "${env.ENV_DIR}/.env.${env.ENVIRONMENT}"
+                    env.DB_COMPOSE_FILE  = "docker-compose.yml"
+
+                    echo """
+                    🌎 Entorno asignado: ${env.ENVIRONMENT}
+                    📄 Compose file (API): ${env.COMPOSE_FILE}
+                    📁 Env file (API): ${env.ENV_FILE}
+                    🗄️ Compose file (DB): ${env.DB_COMPOSE_FILE}
+                    """
+
+                    // 🔍 Validar existencia del archivo compose del entorno
+                    if (!fileExists(env.COMPOSE_FILE)) {
+                        error "❌ No se encontró el archivo ${env.COMPOSE_FILE}"
+                    }
+                }
+            }
+        }
+
+        // =======================================================
+        // 3️⃣ COMPILAR Y PUBLICAR .NET
+        // =======================================================
+        stage('Compilar .NET dentro de contenedor SDK') {
+            steps {
+                script {
+                    docker.image('mcr.microsoft.com/dotnet/sdk:9.0')
+                        .inside('-v /var/run/docker.sock:/var/run/docker.sock -u root:root') {
+                        sh """
+                            echo "🔧 Restaurando dependencias .NET..."
+                            dotnet restore ${PROJECT_PATH}
+
+                            echo "🏗️ Compilando proyecto..."
+                            dotnet build ${PROJECT_PATH} --configuration Release
+
+                            echo "📦 Publicando proyecto..."
+                            dotnet publish ${PROJECT_PATH} -c Release -o ./publish
+                        """
+                    }
+                }
+            }
+        }
+
+        // =======================================================
+        // 4️⃣ CONSTRUIR IMAGEN DOCKER
+        // =======================================================
+        stage('Construir imagen Docker') {
+            steps {
+                dir('.') {
+                    sh """
+                        echo "🐳 Construyendo imagen Docker para EXPERIENCIAS (${env.ENVIRONMENT})"
+                        docker build -t experiencias-api-${env.ENVIRONMENT}:latest -f API/Dockerfile .
+                    """
+                }
+            }
+        }
+
+        // =======================================================
+        // 5️⃣ PREPARAR RED Y BASES DE DATOS
+        // =======================================================
+        stage('Preparar red y base de datos') {
+            steps {
+                script {
+                    sh """
+                        echo "🌐 Creando red externa compartida (si no existe)..."
+                        docker network create network_experiencesig || true
+
+                        echo "🗄️ Levantando stack de bases de datos..."
+                        docker compose -f ${env.DB_COMPOSE_FILE} up -d
+                    """
+                }
+            }
+        }
+
+
+        // =======================================================
+        // 6️⃣ LIMPIAR CONTENEDORES ANTERIORES
+        // =======================================================
+        stage('Limpiar contenedores anteriores') {
+            steps {
+                script {
+                    echo "🧹 Eliminando contenedores antiguos del entorno ${env.ENVIRONMENT}..."
+                    sh """
+                        docker compose -f ${env.COMPOSE_FILE} down --remove-orphans || true
+                    """
+                }
+            }
+        }
+
+        // =======================================================
+        // 7️⃣ DESPLEGAR API CON DOCKER COMPOSE
+        // =======================================================
+        stage('Desplegar EXPERIENCIAS API') {
+            steps {
+                dir('.') {
+                    sh """
+                        echo "🚀 Desplegando entorno: ${env.ENVIRONMENT}"
+                        docker compose -f ${env.COMPOSE_FILE} --env-file ${env.ENV_FILE} up -d --build
+                    """
+                }
+            }
+        }
+    }
+
+    // =======================================================
+    // 🔄 POST-STAGES
+    // =======================================================
+    post {
+        success {
+            echo "🎉 Despliegue completado correctamente para ${env.ENVIRONMENT}"
+        }
+        failure {
+            echo "💥 Error durante el despliegue en ${env.ENVIRONMENT}"
+        }
+        always {
+            echo "🧹 Limpieza final del pipeline completada."
+        }
+    }
+}
