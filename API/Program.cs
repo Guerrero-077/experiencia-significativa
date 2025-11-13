@@ -47,7 +47,7 @@ builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddScoped<SupabaseStorageService>();
 
-builder.Services.AddSwaggerDocumentation();
+builder.Services.AddCustomSwagger();
 
 ServiceExtensions.AddCustomServices(builder.Services);
 
